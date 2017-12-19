@@ -209,6 +209,3 @@ function Get-IconToBase64{
 
 # expose the functions
 Export-ModuleMember -function New-WEMActionXML
-
-#New-WEMActionXML | Out-File d:\VUEMApplications.xml
-#New-WEMActionXML -path 'C:\ProgramData\Microsoft\Windows\Start Menu' | Out-File d:\test.xml
