@@ -29,21 +29,21 @@
 
  .Example
    # Create WEM Actions from all the items in the default Start Menu locations.
-   New-WEMActionXML
+   New-VUEMApplicationsXML
 
  .Example
    # Create WEM Actions from all the items in the default Start Menu locations and export this to a file that can be restored in WEM.
-   New-WEMActionXML | Out-File $env:TEMP\VUEMApplications.xml
+   New-VUEMApplicationsXML | Out-File $env:TEMP\VUEMApplications.xml
 
  .Example
    # Create WEM Actions from all the items in a custom folder, processing .exe and .lnk files.
-   New-WEMActionXML -Path "E:\Custom Folder\Menu Items" -FileTypes exe,lnk
+   New-VUEMApplicationsXML -Path "E:\Custom Folder\Menu Items" -FileTypes exe,lnk
 
  .Example
    # Create WEM Actions from Notepad.exe
-   New-WEMActionXML -Path "C:\Windows\System32\notepad.exe" -Name "Notepad example"
+   New-VUEMApplicationsXML -Path "C:\Windows\System32\notepad.exe" -Name "Notepad example"
 #>
-function New-WEMActionXML {
+function New-VUEMApplicationsXML {
     param(
         [Parameter(Mandatory=$False,
         ValueFromPipeline=$True)][string]$Path,
@@ -208,4 +208,4 @@ function Get-IconToBase64{
 }
 
 # expose the functions
-Export-ModuleMember -function New-WEMActionXML
+Export-ModuleMember -function New-VUEMApplicationsXML
