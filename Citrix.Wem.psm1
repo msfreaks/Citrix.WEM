@@ -16,6 +16,13 @@
   If ommitted the default Start Menu\Programs folders (current user and all users)
   locations will be used.
 
+ .Parameter OutputPath
+  Location where the output xml file will be written to. Defaults to current folder if
+  omitted.
+
+ .Parameter OutputFileName
+  The default filename is VUEMApplications.xml. Use this parameter to override this if needed. 
+
  .Parameter Recurse
   Whether the script needs to recursively process $Path. Only valid when the $Path parameter
   is a folder. Is $True by default if ommitted.
@@ -32,25 +39,33 @@
    New-VUEMApplicationsXML
 
  .Example
-   # Create WEM Actions from all the items in the default Start Menu locations and export this to a file that can be restored in WEM.
-   New-VUEMApplicationsXML | Out-File $env:TEMP\VUEMApplications.xml
+   # Create WEM Actions from all the items in the default Start Menu locations and export this to VUEMApplications.xml in the current folder.
+   New-VUEMApplicationsXML
 
  .Example
-   # Create WEM Actions from all the items in a custom folder, processing .exe and .lnk files.
+   # Create VUEMApplications.xml in the current folder from all the items in a custom folder, processing .exe and .lnk files.
    New-VUEMApplicationsXML -Path "E:\Custom Folder\Menu Items" -FileTypes exe,lnk
 
  .Example
    # Create WEM Actions from Notepad.exe
    New-VUEMApplicationsXML -Path "C:\Windows\System32\notepad.exe" -Name "Notepad example"
+
+ .Example
+   # Create applications.xml in c:\temp for all the items in the default Start Menu locations.
+   New-VUEMApplicationsXML -OutputPath "C:\Temp" -OutputFileName "applications.xml"
 #>
 function New-VUEMApplicationsXML {
     param(
         [Parameter(Mandatory=$False,
         ValueFromPipeline=$True)][string]$Path,
         [Parameter(Mandatory=$False,
-        ValueFromPipeline=$False)][bool] $Recurse = $true,
+        ValueFromPipeline=$False)][string]$OutputPath = (Resolve-Path .\).Path,
         [Parameter(Mandatory=$False,
-        ValueFromPipeline=$False)][string[]] $FileTypes,
+        ValueFromPipeline=$False)][string]$OutputFileName = "VUEMApplications.xml",
+        [Parameter(Mandatory=$False,
+        ValueFromPipeline=$False)][bool]$Recurse = $true,
+        [Parameter(Mandatory=$False,
+        ValueFromPipeline=$False)][string[]]$FileTypes,
         [Parameter(Mandatory=$False,
         ValueFromPipeline=$False)][switch]$Disable
     )
@@ -59,6 +74,12 @@ function New-VUEMApplicationsXML {
     if ($Path -and !(Test-Path $Path)) {
          Write-Host "Cannot find path '$Path' because it does not exist." -ForegroundColor Red
          Break
+    }
+
+    # check if $OutputPath is valid
+    if ($OutputPath -and (!(Test-Path $OutputPath) -or ((Get-Item $OutputPath) -isnot [System.IO.DirectoryInfo]))) {
+        Write-Host "Cannot find path '$OutputPath' because it does not exist or is not a valid path." -ForegroundColor Red
+        Break
     }
 
     # grab files
@@ -148,10 +169,11 @@ function New-VUEMApplicationsXML {
     # finish the XML Document
     $xmlWriter.WriteEndElement()
     $xmlWriter.Finalize
-    $StringWriter.Flush();
+    $StringWriter.Flush()
 
-    # return the raw xml data
-    return $StringWriter.ToString();
+    # output the raw xml data
+    $StringWriter.ToString() | Out-File $OutputPath\$OutputFileName
+    Write-Host "VUEMApplications.xml written to '$OutputPath\$OutputFileName'" -ForegroundColor Green
 }
 
 <#
