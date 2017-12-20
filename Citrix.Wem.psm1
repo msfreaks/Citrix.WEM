@@ -88,6 +88,10 @@ function New-VUEMApplicationsXML {
     $xmlWriter.WriteAttributeString("xmlns:xsd", "http://www.w3.org/2001/XMLSchema");
     $xmlWriter.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
     
+    # define state
+    $State = "1"
+    If ($Disabled) { $State = "0" }
+    
     # process inputs
     ForEach($file in $files) {
         $Description = ""
