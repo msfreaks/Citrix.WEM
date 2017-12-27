@@ -653,12 +653,12 @@ function Import-VUEMActionsFromGPO {
         ValueFromPipeline=$False)][switch]$Disable
     )
     
-    # check if $GPOPath is valid
+    # check if $GPOBackupPath is valid
     If ($GPOBackupPath -and !(Test-Path $GPOBackupPath)) {
         Write-Host "Cannot find path '$GPOPath' because it does not exist." -ForegroundColor Red
         Break
     }
-    if ($GPOBackupPath.EndsWith("\")) { $GPOBackupPath = $GPOBackupPath.Substring(0,$GPOPath.Length-1) }
+    if ($GPOBackupPath.EndsWith("\")) { $GPOBackupPath = $GPOBackupPath.Substring(0,$GPOBackupPath.Length-1) }
 
     # check if $OutputPath is valid
     If ($OutputPath -and (!(Test-Path $OutputPath) -or ((Get-Item $OutputPath) -isnot [System.IO.DirectoryInfo]))) {
