@@ -15,7 +15,7 @@
     https://msfreaks.wordpress.com
 
     .Parameter Path
-    Can be a targetted folder or a targetted file. If a folder is specified the function
+    Can be a targeted folder or a targeted file. If a folder is specified the function
     will assume you wish to parse .lnk files.
     If omitted the default Start Menu\Programs folders (current user and all users)
     locations will be used.
@@ -32,7 +32,7 @@
     is a folder. Is $True by default if omitted.
 
     .Parameter FileTypes
-    Provide a comma seperated list of filetypes to process. Only valid when the $Path
+    Provide a comma separated list of filetypes to process. Only valid when the $Path
     parameter is a folder. If omitted .lnk will be used by default.
 
     .Parameter Prefix
@@ -626,6 +626,7 @@ function New-VUEMUserDSNsXML {
     If the preference has the RunOne switch enabled, the SelfHealing switch will be disabled.
     If the preference has the RunOne switch disabled, the SelfHealing switch will be enabled.
     Printer Mappings are created as Map Network Printer Actions.
+    Only Printer Mappings from the GPO User Preferences are processed. If you published printers to the GPO, these will be skipped.
     Credentials are skipped.
 
     Registry Settings
@@ -653,10 +654,11 @@ function Import-VUEMActionsFromGPO {
     )
     
     # check if $GPOPath is valid
-    If ($GPOPath -and !(Test-Path $GPOPath)) {
+    If ($GPOBackupPath -and !(Test-Path $GPOBackupPath)) {
         Write-Host "Cannot find path '$GPOPath' because it does not exist." -ForegroundColor Red
         Break
-    } Elseif ($GPOPath.EndsWith("\")) { $GPOPath = $GPOPath.Substring(0,$GPOPath.Length-1) }
+    }
+    if ($GPOBackupPath.EndsWith("\")) { $GPOBackupPath = $GPOBackupPath.Substring(0,$GPOPath.Length-1) }
 
     # check if $OutputPath is valid
     If ($OutputPath -and (!(Test-Path $OutputPath) -or ((Get-Item $OutputPath) -isnot [System.IO.DirectoryInfo]))) {
@@ -666,7 +668,7 @@ function Import-VUEMActionsFromGPO {
 
     # grab GPO backups
     $GPOBackups = @()
-    $GPOBackups = Get-ChildItem -Path $GPOPath -Directory | Where-Object {$_.Name -like "{*}" } | Select-Object FullName
+    $GPOBackups = Get-ChildItem -Path $GPOBackupPath -Directory | Where-Object {$_.Name -like "{*}" } | Select-Object FullName
 
     If (!$GPOBackups) {
         Write-Host "Connot locate GPO Backups in '$GPOPath'" -ForegroundColor Red
