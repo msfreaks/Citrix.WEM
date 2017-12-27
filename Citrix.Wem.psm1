@@ -17,7 +17,7 @@
     .Parameter Path
     Can be a targetted folder or a targetted file. If a folder is specified the function
     will assume you wish to parse .lnk files.
-    If ommitted the default Start Menu\Programs folders (current user and all users)
+    If omitted the default Start Menu\Programs folders (current user and all users)
     locations will be used.
 
     .Parameter OutputPath
@@ -29,20 +29,20 @@
 
     .Parameter Recurse
     Whether the script needs to recursively process $Path. Only valid when the $Path parameter
-    is a folder. Is $True by default if ommitted.
+    is a folder. Is $True by default if omitted.
 
     .Parameter FileTypes
     Provide a comma seperated list of filetypes to process. Only valid when the $Path
-    parameter is a folder. If ommitted .lnk will be used by default.
+    parameter is a folder. If omitted .lnk will be used by default.
 
     .Parameter Prefix
     Provide a prefix string used to generate Action names (as displayed in the WEM console).
 
     .Parameter SelfHealingEnabled
-    If used will create Actions using the SelfHealingEnabled parameter. Defaults to $false if ommitted.
+    If used will create Actions using the SelfHealingEnabled parameter. Defaults to $false if omitted.
 
     .Parameter Disable
-    If used will create disabled Actions. Defaults to $false if ommitted (create Enabled Actions).
+    If used will create disabled Actions. Defaults to $false if omitted (create Enabled Actions).
 
     .Example
     New-VUEMApplicationsXML
@@ -251,10 +251,10 @@ function New-VUEMApplicationsXML {
     Provide a prefix string used to generate Action names (as displayed in the WEM console).
 
     .Parameter SelfHealingEnabled
-    If used will create Actions using the SelfHealingEnabled parameter. Defaults to $false if ommitted.
+    If used will create Actions using the SelfHealingEnabled parameter. Defaults to $false if omitted.
 
     .Parameter Disable
-    If used will create disabled Actions. Defaults to $false if ommitted (create Enabled Actions).
+    If used will create disabled Actions. Defaults to $false if omitted (create Enabled Actions).
 
     .Example
     New-VUEMNetDrivesXML
@@ -411,10 +411,10 @@ function New-VUEMNetDrivesXML {
     Provide a prefix string used to generate Action names (as displayed in the WEM console).
 
     .Parameter RunOnce
-    If used will create Actions using the RunOnce parameter. Defaults to $false if ommitted.
+    If used will create Actions using the RunOnce parameter. Defaults to $false if omitted.
 
     .Parameter Disable
-    If used will create disabled Actions. Defaults to $false if ommitted (create Enabled Actions).
+    If used will create disabled Actions. Defaults to $false if omitted (create Enabled Actions).
 
     .Example
     New-VUEMUserDSNsXML
@@ -561,7 +561,7 @@ function New-VUEMUserDSNsXML {
     Provide a prefix string used to generate Action names (as displayed in the WEM console).
 
     .Parameter Disable
-    If used will create disabled Actions. Defaults to $false if ommitted (create Enabled Actions).
+    If used will create disabled Actions. Defaults to $false if omitted (create Enabled Actions).
 
     .Example
     Import-VUEMActionsFromGPO -GPOBackupPath C:\GPOBackups
@@ -631,7 +631,7 @@ function New-VUEMUserDSNsXML {
     Registry Settings
     -----------
     If the GPO for a Registry action has the action set to D (Delete), the Action Name is suffixed with " (Delete)".
-    Collections are processed as individual actions, Collection names are ommitted.
+    Collections are processed as individual actions, Collection names are omitted.
 
     DataSources
     -----------
