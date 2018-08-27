@@ -2132,7 +2132,6 @@ Function New-VUEMApplicationsXml {
             $VUEMAppName = Get-UniqueActionName -ObjectList $VUEMApplications -ActionName "$Prefix$($file.BaseName)"
             If (!$Description -and $OverrideEmptyDescription) { $Description = "$($file.BaseName)" }
 
-
             $VUEMApplication = New-VUEMApplicationObject -Name "$VUEMAppName" `
                                                          -Description "$Description" `
                                                          -DisplayName "$($file.BaseName)" `
