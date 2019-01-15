@@ -20,6 +20,9 @@ These functions will not modify WEM or its database directly!
 
 A big thank you to James Kindon for support, testing, suggestions, brainpicking, etc!
 
+v1.1.0 - New functionality - January 15 2019
+Added Import-VUEMActionsFromCSV: added function
+
 v1.0.0 - Major version Release - January 8 2018
 Updated all functions: -Verbose switch shows Verbose Output
 Fixed Import-VUEM..FromGpo functions: Feedback on errors for GPOBackupPath parameter returned empty value
@@ -70,6 +73,15 @@ Updated New-VUEMApplicationsXml
 
 v0.9.0 - Initial release - December 17 2017
 Added New-VUEMApplicationsXml: added function
+
+Function Import-VUEMActionsFromCSV
+Create a CSV using Get-BrokerApplication | Export-CSV -Path <path to output csv file>
+Then use this function to import the published applications or content to WEM Application Actions.
+If the target resources are available on the machine where you run this, the icons will be grabbed as well.
+If you have .ico files that have the same name as the CommandLine targets for your published applications
+and they are available in the same folder as your CSV file, those icons will be used.
+See "Get-Help Import-VUEMActionsFromCSV" for details on how to use the function.
+
 
 Function Import-VUEMActionsFromGpo
 Imports User Preference settings from GPOs and converts them to WEM Action files.

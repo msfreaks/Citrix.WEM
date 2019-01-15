@@ -1,5 +1,5 @@
 #
-# Citrix.Wem.Version = "1.0.0"
+# Citrix.Wem.Version = "1.1.0"
 #
 
 <# 
@@ -2159,6 +2159,288 @@ Function New-VUEMApplicationsXml {
 
 <# 
     .Synopsis
+    Imports an exported BrokerApplication CSV and converts this to WEM Applications Actions.
+
+    .Description
+    Imports an exported BrokerApplication CSV and converts this to WEM Applications Actions.
+
+    .Link
+    https://msfreaks.wordpress.com
+
+    .Parameter CSVFile
+    This is the full path including the filename to an exported BrokerApplications CSV file.
+
+    .Parameter OutputPath
+    Location where the output xml file will be written to. Defaults to current folder if
+    omitted.
+
+    .Parameter OutputFileName
+    The default filename is VUEMApplications.xml. Use this parameter to override this if needed. 
+
+    .Parameter Prefix
+    Provide a prefix string used to generate Action names (as displayed in the WEM console).
+
+    .Parameter SelfHealingEnabled
+    This will enable the SelfHealing option.
+    
+    .Parameter OverrideEmptyDescription
+    If used will generate a description based on the Action name, but only if a description is not found during
+    processing.
+
+    .Parameter OverrideDisplayName
+    Use this parameter to select a different column in the CSV to provide the DisplayName in the Application Action.
+    Possible values here are "Name", "BrowserName" or "ApplicationName". Will use "PublishedName" if omitted.
+
+    .Parameter IgnoreStartMenuFolder
+    Use this parameter if you wish to ignore the StartMenuFolder in the CSV file.
+    This will create all Application Actions in the default location, which is in the root of the StartMenu.
+
+    .Parameter Disable
+    If used will create disabled Actions. Defaults to $False if omitted (uses Enabled status from the imported CSV).
+
+    .Example
+    Import-VUEMActionsFromBrokerApplicationCSV -CSVFile C:\BrokerApplications\Export.csv
+
+    Description
+
+    -----------
+
+    Create WEM Applications Actions from the CSV file "Export.csv" in C:\BrokerApplications.
+    Output is created in the current folder.
+
+    .Example
+    Import-VUEMActionsFromBrokerApplicationCSV -CSVFile C:\BrokerApplications\Export.csv -OutputPath "C:\Temp"
+
+    Description
+
+    -----------
+
+    Create WEM Applications Actions from the CSV file "Export.csv" in C:\BrokerApplications.
+    Output is created in c:\temp folder.
+
+    .Example
+    Import-VUEMActionsFromBrokerApplicationCSV -CSVFile C:\BrokerApplications\Export.csv -OutputPath "C:\Temp" -OutputFileName "applications.xml"
+
+    Description
+
+    -----------
+
+    Create WEM Applications Actions from the CSV file "Export.csv" in C:\BrokerApplications.
+    Output is created in c:\temp folder and will be named applications.xml instead of vuemapplications.xml (which is the default and only filename
+    you can use to import!).
+
+    .Example
+    Import-VUEMActionsFromBrokerApplicationCSV -CSVFile C:\BrokerApplications\Export.csv -Prefix "ITW - " -Disable
+
+    Description
+
+    -----------
+
+    Create WEM Applications Actions from the CSV file "Export.csv" in C:\BrokerApplications.
+    Output is created in the current folder.
+    All Action names in the WEM Console are prefixed with "ITW - ", like for example "ITW - Microoft Outlook 2016", and all
+    actions are disabled.
+
+    .Example
+    Import-VUEMActionsFromBrokerApplicationCSV -CSVFile C:\BrokerApplications\Export.csv -SelfHealingEnabled -OverrideEmptyDescription
+
+    Description
+
+    -----------
+
+    Create WEM Applications Actions from the CSV file "Export.csv" in C:\BrokerApplications.
+    Output is created in the current folder.
+    All Actions will have SelfHealing set to enabled.
+    If no Description was found during processing, the Action name is used as description.
+
+    .Notes
+    Author:  Arjan Mensch
+    Version: 1.1.0
+
+    Create a valid export file for all Published Applications:
+    Get-BrokerApplication [-AdminAddress <remote hostname>] | Export-Csv <filename including path for CSV>
+
+    Refer to the Citrix documentation for Get-BrokerApplication for more info on filtering your output:
+    https://citrix.github.io/delivery-controller-sdk/Broker/Get-BrokerApplication/
+    
+#>
+Function Import-VUEMActionsFromBrokerApplicationCSV {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True,Position=1)]
+        [string]$CSVFile,
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [string]$OutputPath = (Resolve-Path .\).Path,
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [string]$OutputFileName = "VUEMApplications.xml",
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [string]$Prefix = "",
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [switch]$SelfHealingEnabled = $False,
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [switch]$OverrideEmptyDescription = $False,
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [ValidateSet("Name", "BrowserName", "ApplicationName")]
+        [string]$OverrideDisplayName = "PublishedName",
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [switch]$IgnoreStartMenuFolder = $False,
+        [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
+        [switch]$Disable = $False
+    )
+    Write-Verbose "$(Get-Date -Format G)"
+    Write-Verbose "Function: $($MyInvocation.MyCommand)"
+
+    # check if $CSVFile is valid
+    If ($CSVFile -and (!(Test-Path -Path $CSVFile) -or !($CSVFile.EndsWith(".csv")))) {
+        Write-Host "Cannot find file '$CSVFile' because it does not exist or is not a valid CSV file." -ForegroundColor Red
+        Break
+    }
+    
+    # set ImportPath
+    $ImportPath = Split-Path "$($CSVFile)"
+
+    # check if $OutputPath is valid
+    If ($OutputPath -and (!(Test-Path -Path $OutputPath) -or ((Get-Item -Path $OutputPath) -isnot [System.IO.DirectoryInfo]))) {
+        Write-Host "Cannot find path '$OutputPath' because it does not exist or is not a valid path." -ForegroundColor Red
+        Break
+    } Elseif ($OutputPath.EndsWith("\")) { $OutputPath = $OutputPath.Substring(0,$OutputPath.Length-1) }
+
+    # check if $OutputFileName is valid
+    If ($OutputFileName -and (!($OutputFileName.IndexOfAny([System.IO.Path]::GetInvalidFileNameChars()) -eq -1))) {
+        Write-Host "'$OutputFileName' is not a valid filename." -ForegroundColor Red
+        Break
+    }
+
+    # grab BrokerApplications
+    $BrokerApplications = @()
+    $BrokerApplications = Import-Csv -Path $CSVFile
+
+    # Verbose output
+    Write-Verbose "Using CSVFile '$CSVFile'"
+    Write-Verbose "Using OutputPath '$OutputPath'"
+    Write-Verbose "Using OutputFileName: '$OutputFileName'"
+    Write-Verbose "Using Prefix '$Prefix'"
+    Write-Verbose "Using SelfHealingEnabled: $SelfHealingEnabled"
+    Write-Verbose "Using OverrideEmptyDescription: $OverrideEmptyDescription"
+    Write-Verbose "Using OverrideDisplayName: $OverrideDisplayName"
+    Write-Verbose "Using IgnoreStartMenuFolder: $IgnoreStartMenuFolder"
+    Write-Verbose "Using Disable: $Disable"
+    Write-Verbose "Found $($BrokerApplications.Count) BrokerApplications in '$CSVFile'"
+
+    If (!$BrokerApplications) {
+        Write-Host "Cannot locate BrokerApplications in '$CSVFile'" -ForegroundColor Red
+        Break
+    }
+
+    # check if all the required columns are in the CSV file
+    $ColumnsExpected = @("Name", "BrowserName", "ApplicationName", "PublishedName", "ApplicationType", "CommandLineExecutable", "CommandLineArguments", "WorkingDirectory", "Enabled", "StartMenuFolder")
+    $ColumnsOK = $True
+    $ColumnsCsv = $BrokerApplications | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
+    $ColumnsExpected | ForEach-Object {
+        If ($ColumnsCsv -notcontains $_) {
+            $ColumnsOK = $False
+            Write-Host "Expected column not found in '$CSVFile': '$($_)'" -ForegroundColor Red
+        }
+    }
+    If (-not $ColumnsOK) {
+        Break
+    }
+
+    # pre-load System.Drawing namespace
+    [void][System.Reflection.Assembly]::LoadWithPartialName("System.Drawing")
+    $IconStreamGeneric = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEaSURBVFhH7ZTbCoJAEIaFCCKCCKJnLTpQVBdB14HQ00T0CqUP4AN41puJAVe92F3HRZegHfgQFvH7/1nQMmPmZ+Z8uYJOCm01vJe64PF8cZ+Ftho89DxPC8IAeZ73QpZlJWmattsAfsBavsk0yRsD3Ox7ST3A4uTC/OjC7ODCdO/AZOfAeOvAaPOB4foDg1UVwLZtIUmSqG2AIq9vgNcc5coBKHIWgNec0RhAdAUUOSJrjsRxrLYBihxBMa85QzkARY7ImjOkAURXQJEjKOY1Z0RRpLYBihyRNUe5cgCKHEEprzmjMYDoCqjImiNhGKptgApvA3V57wFkzbUGEMmDIGgfAKH84ShypQBdyn3fFwfQSaE1Y+bvx7K+efsbU5+Ow3MAAAAASUVORK5CYII="
+
+    # init VUEM action arrays
+    $VUEMApplications = @()
+
+    # define selfhealing
+    $SelfHeal = "0"
+    If ($SelfHealingEnabled) { $SelfHeal = "1" }
+
+    # process inputs
+    ForEach ($app in $BrokerApplications) {
+        # define state
+        $State = "1"
+        If ($Disable -or $app.Enabled -like "False") { $State = "0" }
+
+        # define Description
+        $Description = $app.Description
+        If ($Description -like "KEYWORDS:*") { $Description = "" }
+
+        # define DisplayName
+        $DisplayName = ""
+        switch ($OverrideDisplayName) {
+            "ApplicationName" { $DisplayName = $app.ApplicationName }
+            "BrowserName" { $DisplayName = $app.BrowserName }
+            "Name" { $DisplayName = $app.Name }
+            "PublishedName" { $DisplayName = $app.PublishedName }
+            Default {}
+        }
+
+        # define StartMenuFolder
+        $StartMenuFolder = ""
+        If (!$IgnoreStartMenuFolder -and $app.StartMenuFolder) { $StartMenuFolder = "\$($app.StartMenuFolder)" }
+
+        # define Application parameters
+        $Arguments = ""
+        $TargetFileName = ""
+        $IconLocation = ""
+        $IconStream = ""
+
+        $TargetPath = [System.Environment]::ExpandEnvironmentVariables($app.CommandLineExecutable)
+        $HotKey = "None"
+
+        $WorkingDirectory = "Url"
+        # all set for published content. grab more properties for hosted apps
+        If ($app.ApplicationType -like "HostedOnDesktop") {
+            $TargetFileName = Split-Path -Path $TargetPath -Leaf 
+            $Arguments = $app.CommandLineArguments
+            $WorkingDirectory = [System.Environment]::ExpandEnvironmentVariables($app.WorkingDirectory)
+            # define IconLocation
+            $IconLocation = $TargetPath
+            If (Test-Path -Path "$($ImportPath)\$($TargetFileName.SubString(0,$TargetFileName.LastIndexOf("."))).ico") { $IconLocation = "$($ImportPath)\$($TargetFileName.SubString(0,$TargetFileName.LastIndexOf("."))).ico" }
+        }
+
+        # only work if we have a target
+        If ($TargetPath) {
+            # grab icon
+            If ($IconLocation -and (Test-Path $IconLocation)) { 
+                $IconStream = Get-IconToBase64 ([System.Drawing.Icon]::ExtractAssociatedIcon("$($IconLocation)"))
+            } else {
+                $IconLocation = "C:\PlaceHolderUsedBecauseNoIconWasFound.exe" 
+                $IconStream = $IconStreamGeneric
+            }
+            
+            $VUEMAppName = Get-UniqueActionName -ObjectList $VUEMApplications -ActionName "$Prefix$($app.Name)"
+            If ((!$Description) -and $OverrideEmptyDescription) { $Description = "$($app.Name)" }
+
+            $VUEMApplication = New-VUEMApplicationObject -Name "$VUEMAppName" `
+                                                            -Description "$Description" `
+                                                            -DisplayName "$DisplayName" `
+                                                            -StartMenuTarget "Start Menu\Programs$($StartMenuFolder)" `
+                                                            -TargetPath "$TargetPath" `
+                                                            -Parameters "$Arguments" `
+                                                            -WorkingDirectory "$WorkingDirectory" `
+                                                            -Hotkey "$Hotkey" `
+                                                            -IconLocation "$IconLocation" `
+                                                            -IconStream "$IconStream" `
+                                                            -SelfHealingEnabled "$SelfHeal" `
+                                                            -State "$State" `
+                                                            -ObjectList $VUEMApplications
+    
+            If ($VUEMApplication ) { $VUEMApplications += $VUEMApplication }
+        }
+    }
+
+    # output xml file
+    If ($VUEMApplications) {
+        New-VUEMXmlFile -VUEMIdentifier "VUEMApplication" -ObjectList $VUEMApplications | Out-File $OutputPath\$OutputFileName
+        Write-Host "$OutputFileName written to '$OutputPath\$OutputFileName'" -ForegroundColor Green
+    }
+}
+
+<# 
+    .Synopsis
     Builds an .xml file containing WEM Action definitions.
 
     .Description
@@ -2988,6 +3270,8 @@ Function New-VUEMApplicationObject() {
 
     Write-Verbose " Added Application action '$Name'"
 
+    $AppType = "0"
+    If ($WorkingDirectory -like "Url") { $AppType = "4" }
     Return [pscustomobject] @{     
         'Name' = $Name
         'Description' = $Description
@@ -3003,6 +3287,7 @@ Function New-VUEMApplicationObject() {
         'IconStream' = $IconStream
         'Reserved01' = '<?xml version="1.0" encoding="utf-8"?><ArrayOfVUEMActionAdvancedOption xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><VUEMActionAdvancedOption><Name>SelfHealingEnabled</Name><Value>'+$SelfHealingEnabled+'</Value></VUEMActionAdvancedOption><VUEMActionAdvancedOption><Name>EnforceIconLocation</Name><Value>0</Value></VUEMActionAdvancedOption><VUEMActionAdvancedOption><Name>EnforcedIconXValue</Name><Value>0</Value></VUEMActionAdvancedOption><VUEMActionAdvancedOption><Name>EnforcedIconYValue</Name><Value>0</Value></VUEMActionAdvancedOption><VUEMActionAdvancedOption><Name>DoNotShowInSelfService</Name><Value>0</Value></VUEMActionAdvancedOption><VUEMActionAdvancedOption><Name>CreateShortcutInUserFavoritesFolder</Name><Value>0</Value></VUEMActionAdvancedOption></ArrayOfVUEMActionAdvancedOption>'
         'ActionType' = "0"
+        'AppType' = $AppType
         'State' = $State
     }
     # Action type 0 = create application shortcut
@@ -3704,6 +3989,7 @@ Function Get-GPORegistrySettingsFromCollection {
 
 # expose functions
 Export-ModuleMember -Function Import-VUEMActionsFromGpo
+Export-ModuleMember -Function Import-VUEMActionsFromBrokerApplicationCSV
 Export-ModuleMember -Function Import-VUEMEnvironmentalSettingsFromGpo
 Export-ModuleMember -Function Import-VUEMMicrosoftUsvSettingsFromGpo
 Export-ModuleMember -Function New-VUEMApplicationsXml
