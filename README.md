@@ -21,7 +21,7 @@ These functions will not modify WEM or its database directly!
 A big thank you to James Kindon (@james_kindon) for support, testing, suggestions, brainpicking, etc!
 
 v1.1.0 - New functionality - January 15 2019
-Added Import-VUEMActionsFromCSV: added function
+Added Import-VUEMActionsFromBrokerApplicationCSV: added function
 
 v1.0.0 - Major version Release - January 8 2018
 Updated all functions: -Verbose switch shows Verbose Output
