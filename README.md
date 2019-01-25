@@ -18,7 +18,7 @@ found there into WEM.
 Using the functions in this module will create .xml files you can then import (restore) into WEM.
 These functions will not modify WEM or its database directly!
 
-A big thank you to James Kindon for support, testing, suggestions, brainpicking, etc!
+A big thank you to James Kindon (@james_kindon) for support, testing, suggestions, brainpicking, etc!
 
 v1.1.0 - New functionality - January 15 2019
 Added Import-VUEMActionsFromCSV: added function
