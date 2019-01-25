@@ -74,7 +74,7 @@ Updated New-VUEMApplicationsXml
 v0.9.0 - Initial release - December 17 2017
 Added New-VUEMApplicationsXml: added function
 
-Function Import-VUEMActionsFromCSV
+Function Import-VUEMActionsFromBrokerApplicationCSV
 Create a CSV using Get-BrokerApplication | Export-CSV -Path <path to output csv file>
 Then use this function to import the published applications or content to WEM Application Actions.
 If the target resources are available on the machine where you run this, the icons will be grabbed as well.
