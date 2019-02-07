@@ -20,6 +20,9 @@ These functions will not modify WEM or its database directly!
 
 A big thank you to James Kindon (@james_kindon) for support, testing, suggestions, brainpicking, etc!
 
+v1.1.1 - Update release - February 7 2019
+Updated Import-VUEMActionsFromGpo: Registry processing will now skip REG_BINARY settings
+
 v1.1.0 - New functionality - January 15 2019
 Added Import-VUEMActionsFromBrokerApplicationCSV: added function
 

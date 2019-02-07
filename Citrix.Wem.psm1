@@ -1,5 +1,5 @@
 #
-# Citrix.Wem.Version = "1.1.0"
+# Citrix.Wem.Version = "1.1.1"
 #
 
 <# 
@@ -111,7 +111,7 @@
 
     .Notes
     Author:  Arjan Mensch
-    Version: 1.0.0
+    Version: 1.1.1
 
     DataSources (VUEMUserDSNs)
     -----------
@@ -162,6 +162,8 @@
     If the GPO for a Registry action has the action set to D (Delete), the Action Name is suffixed with " (Delete)".
     The Action Name will be based on Registry path, suffixed with the value name.
     Registry actions in Collections are processed as individual actions, Collection names are omitted.
+    Since WEM does not support REG_BINARY settings, these will be skipped. Use -Verbose to output the names and keys
+    of skipped items.
 
     Run these programs at user logon / User Logon Scripts (VUEMExtTasks)
     -----------
@@ -176,7 +178,7 @@ Function Import-VUEMActionsFromGpo {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True,ValueFromPipeline=$True,Position=1)]
-        [string]$GPOBackupPath = "",
+        [string]$GPOBackupPath,
         [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
         [string]$OutputPath = (Resolve-Path .\).Path,
         [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
@@ -573,7 +575,7 @@ Function Import-VUEMActionsFromGpo {
             
             # process registry
             ForEach ($GPORegistrySetting in $GPORegistrySettings) {
-                If ($GPORegistrySetting.Properties.key) {
+                If ($GPORegistrySetting.Properties.key -and $GPORegistrySetting.Properties.type -and ($GPORegistrySetting.Properties.type -notlike "REG_BINARY")) {
                     $GPOName = "$Prefix$($GPORegistrySetting.Properties.key)"
                     If ($GPORegistrySetting.Properties.name) { 
                         $GPOName += "\$($GPORegistrySetting.Properties.name)"
@@ -616,6 +618,8 @@ Function Import-VUEMActionsFromGpo {
                             If ($GPOFilter) { $GPOFilters += $GPOFilter }
                         }
                     }
+                } elseif ($GPORegistrySetting.Properties.key -and $GPORegistrySetting.Properties.type -and $GPORegistrySetting.Properties.type -like "REG_BINARY") {
+                    Write-Verbose "Skipped REG_BINARY Registry Preference: '$($GPORegistrySetting.Properties.name)' - '$($GPORegistrySetting.Properties.key)'"
                 }
             }
         }
@@ -894,7 +898,7 @@ Function Import-VUEMEnvironmentalSettingsFromGpo {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True,ValueFromPipeline=$True,Position=1)]
-        [string]$GPOBackupPath = "",
+        [string]$GPOBackupPath,
         [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
         [string]$OutputPath = (Resolve-Path .\).Path,
         [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
@@ -1497,7 +1501,7 @@ Function Import-VUEMMicrosoftUsvSettingsFromGpo {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True,ValueFromPipeline=$True,Position=1)]
-        [string]$GPOBackupPath = "",
+        [string]$GPOBackupPath,
         [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
         [string]$OutputPath = (Resolve-Path .\).Path,
         [Parameter(Mandatory=$False,ValueFromPipeline=$False)]
