@@ -1,5 +1,5 @@
 #
-# Citrix.Wem.Version = "1.1.1"
+# Citrix.Wem.Version = "1.2.1"
 #
 
 <# 
@@ -111,7 +111,12 @@
 
     .Notes
     Author:  Arjan Mensch
-    Version: 1.1.1
+    Version: 1.2.1
+
+    Shortcuts (VUEMApplications)
+    -----------
+    If the GPO for a shortcut has the action set to D (Delete), the shortcut preference will be skipped.
+    The Action Name will be based on shortcutPath settings.
 
     DataSources (VUEMUserDSNs)
     -----------
@@ -228,6 +233,7 @@ Function Import-VUEMActionsFromGpo {
     Write-Verbose "Found $($GPOBackups.Count) GPO Backups in '$GPOBackupPath'"
 
     # init VUEM action arrays
+    $VUEMApplications = @()
     $VUEMNetDrives = @()
     $VUEMEnvVariables = @()
     $VUEMExtTasks = @()
@@ -256,6 +262,86 @@ Function Import-VUEMActionsFromGpo {
         If (Test-Path -Path ("{0}\gpreport.xml" -f $GPOBackup.FullName)) {
             [xml]$GPOReport = Get-Content -Path ("{0}\gpreport.xml" -f $GPOBackup.FullName)
         }
+
+        #region GPO Preferences - Shortcut
+        If (Test-Path -Path ("{0}Shortcuts\Shortcuts.xml" -f $GPOPreferenceLocation)) {
+            Write-Host "Found Shortcut User preference xml in '$($GPOBackup.FullName)'" -ForegroundColor Yellow
+
+            # pre-load System.Drawing namespace
+            [void][System.Reflection.Assembly]::LoadWithPartialName("System.Drawing")
+            $IconStreamGeneric = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEaSURBVFhH7ZTbCoJAEIaFCCKCCKJnLTpQVBdB14HQ00T0CqUP4AN41puJAVe92F3HRZegHfgQFvH7/1nQMmPmZ+Z8uYJOCm01vJe64PF8cZ+Ftho89DxPC8IAeZ73QpZlJWmattsAfsBavsk0yRsD3Ox7ST3A4uTC/OjC7ODCdO/AZOfAeOvAaPOB4foDg1UVwLZtIUmSqG2AIq9vgNcc5coBKHIWgNec0RhAdAUUOSJrjsRxrLYBihxBMa85QzkARY7ImjOkAURXQJEjKOY1Z0RRpLYBihyRNUe5cgCKHEEprzmjMYDoCqjImiNhGKptgApvA3V57wFkzbUGEMmDIGgfAKH84ShypQBdyn3fFwfQSaE1Y+bvx7K+efsbU5+Ow3MAAAAASUVORK5CYII="
+
+            # grab Shortcuts from Shortcuts.xml
+            [xml]$GPOPreference = Get-Content -Path ("{0}Shortcuts\Shortcuts.xml" -f $GPOPreferenceLocation)
+            # grab Shortcuts where action is not set to D (Delete)
+            $GPOShortcuts = $GPOPreference.Shortcuts.Shortcut | Where-Object { $_.Properties.action -notlike "D" }
+
+            # convert Shortcuts to VUEMApplications
+            ForEach ($GPOShortcut in $GPOShortcuts) {
+                $WorkingDirectory = ""
+                $IconLocation = ""
+                $Arguments = ""
+                $HotKey = "None"
+                $TargetPath = ""
+                $IconStream = ""
+
+                $GPOName = "$Prefix"
+                If ($GPOShortcut.Properties.shortcutPath.Contains("\")) {
+                    $GPOName += $GPOShortcut.Properties.shortcutPath.SubString($GPOShortcut.Properties.shortcutPath.LastIndexOf("\") + 1)
+                } else {
+                    $GPOName += $GPOShortcut.Properties.shortcutPath
+                }
+
+                $VUEMAppName = Get-UniqueActionName -ObjectList $VUEMApplications -ActionName "$GPOName"
+
+                $Description = "$($GPOShortcut.Properties.comment)".Trim()
+                If (!$Description -and $OverrideEmptyDescription) { $Description = $GPOName }
+
+                $GPOSelfHealingEnabled = "1"
+                If (!$SelfHealingEnabled) { $GPOSelfHealingEnabled = "0" }
+
+                $TargetPath = $GPOShortcut.Properties.targetPath
+                $Arguments = $GPOShortcut.Properties.arguments
+                If ($GPOShortcut.Properties.startIn) { $WorkingDirectory = $GPOShortcut.Properties.startIn }
+                If ($GPOShortcut.Properties.targetType -like "URL") { $WorkingDirectory = "Url" }
+                If ($GPOShortcut.Properties.shortcutKey -ne 0) { $HotKey = $GPOShortcut.Properties.shortcutKey }
+                If ($GPOShortcut.Properties.iconPath -notlike "*.dll") { $IconLocation = $GPOShortcut.Properties.iconPath }
+                
+                # grab icon
+                If ($IconLocation -and (Test-Path $IconLocation)) { 
+                    $IconStream = Get-IconToBase64 ([System.Drawing.Icon]::ExtractAssociatedIcon("$($IconLocation)"))
+                } else {
+                    $IconLocation = "C:\PlaceHolderUsedBecauseNoIconWasFound.exe" 
+                    $IconStream = $IconStreamGeneric
+                }
+    
+                $VUEMApplication = New-VUEMApplicationObject -Name "$VUEMAppName" `
+                                                                -Description "$Description" `
+                                                                -DisplayName "$VUEMAppName" `
+                                                                -StartMenuTarget "Start Menu\Programs\$($VUEMAppName)" `
+                                                                -TargetPath "$TargetPath" `
+                                                                -Parameters "$Arguments" `
+                                                                -WorkingDirectory "$WorkingDirectory" `
+                                                                -Hotkey "$Hotkey" `
+                                                                -IconLocation "$IconLocation" `
+                                                                -IconStream "$IconStream" `
+                                                                -SelfHealingEnabled "$GPOSelfHealingEnabled" `
+                                                                -State "$State" `
+                                                                -ObjectList $VUEMApplications
+        
+                If ($VUEMApplication) { 
+                    # add new object to array
+                    $VUEMApplications += $VUEMApplication
+                
+                    # grab GPO Filters for this new object
+                    ForEach ($Filter in $GPOShortcut.Filters) {
+                        $GPOFilter = New-GPOFilterObject -Name "$GPOApplicationName" -Filter $Filter -ActionType "Application"
+                        If ($GPOFilter) { $GPOFilters += $GPOFilter }
+                    }
+                }
+            }
+        }
+        #endregion
 
         #region GPO Preferences - Drives
         If (Test-Path -Path ("{0}Drives\Drives.xml" -f $GPOPreferenceLocation)) {
@@ -715,7 +801,10 @@ Function Import-VUEMActionsFromGpo {
 
             ForEach ($GPOScript in $GPOScripts) {
                 $GPOScriptCommand = $GPOScript.Command
-                $GPOScriptArgs = $GPOScript.Parameters.Trim()
+                $GPOScriptArgs = ""
+                If ($GPOScript.Parameters) {
+                    $GPOScriptArgs = $GPOScript.Parameters.Trim()
+                }
 
                 $GPOName = "$Prefix$([System.IO.Path]::GetFileNameWithoutExtension("$($GPOScriptCommand)"))"
                 $GPOScriptName = Get-UniqueActionName -ObjectList $VUEMExtTasks -ActionName "$GPOName"
@@ -744,6 +833,10 @@ Function Import-VUEMActionsFromGpo {
     }
 
     #region output xml files
+    If ($VUEMApplications) {
+        New-VUEMXmlFile -VUEMIdentifier "VUEMApplication" -ObjectList $VUEMApplications | Out-File $OutputPath\VUEMApplications.xml
+        Write-Host "VUEMApplications.xml written to '$OutputPath\VUEMApplications.xml'" -ForegroundColor Green
+    }
     If ($VUEMNetDrives) {
         New-VUEMXmlFile -VUEMIdentifier "VUEMNetDrive" -ObjectList $VUEMNetDrives | Out-File $OutputPath\VUEMNetDrives.xml
         Write-Host "VUEMNetDrives.xml written to '$OutputPath\VUEMNetDrives.xml'" -ForegroundColor Green
